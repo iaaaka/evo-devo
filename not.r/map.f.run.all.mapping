@@ -1,0 +1,8 @@
+cd /home/Pavel.Mazin/link/projects/evo.devo/processed/mapping/hisat2.f
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-258 -v species=chicken,indexn=Gallus_gallus.Galgal4.dna.toplevel.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-476 -v species=mouse,indexn=Mus_musculus.GRCm38.dna.primary_assembly.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-455 -v species=rat,indexn=Rattus_norvegicus.Rnor_5.0.dna.toplevel.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-436 -v species=rabbit,indexn=Oryctolagus_cuniculus.OryCun2.0.dna.toplevel.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-363 -v species=human,indexn=Homo_sapiens.GRCh37.73.dna.primary_assembly.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-184 -v species=macaque,indexn=Macaca_mulatta.MMUL_1.dna.toplevel.cleanNames hisat2.f.run.sh
+#qsub -l nodes=1:ppn=16,mem=24gb -l walltime=4:00:00 -l feature=hpmsa -t 0-274 -v species=opossum,indexn=Monodelphis_domestica.BROADO5.dna.toplevel.cleanNames hisat2.f.run.sh

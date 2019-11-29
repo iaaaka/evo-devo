@@ -1,0 +1,33 @@
+#!/usr/bin/python
+import os
+import sys
+
+#usage:cat *gtf | python  *.py  fasta > .fa
+path2fa = sys.argv[1]
+
+def getSeq(fa,seqname,start,stop,strand):
+	if seqname in fa:
+		return(fa[seqname][start:stop])
+	else:
+		return('-')
+
+def readFasta(f):
+	fa = open(f,buffering=1000000)
+	r = {}
+	name = ''
+	lines = []
+	i = 0
+	for line in fa:
+		i += 1
+		line = line.rstrip()
+		if line[0:1] == '>':
+			if name != '':
+				r[name] = ''.join(lines)
+			name = line[1:]
+			lines = []
+		else:
+			lines.append(line)
+	r[name] = ''.join(lines)
+	fa.close()
+	return(r)
+

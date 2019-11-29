@@ -1,0 +1,39 @@
+import tabix
+import collections
+
+mar = 200
+path2vcf = '/uge_mnt/home/mazin/data/raw/evo.devo/gnomad201/gnomad.genomes.r2.0.1.sites.'
+chrs = [str(i) for i in range(1,23)]
+chrs.append('X')
+segs = map(str.split, open('/uge_mnt/home/mazin/projects/evo.devo/processed/gnomad201/human.ad.tab'))
+infos = ['AC','AF','AN']
+
+def getSNPbyChr(chr):
+	ss = [s for s in segs if s[1] == chr]
+	tb = tabix.open(path2vcf+chr+'.vcf.gz')
+	res = []
+	for s in ss:
+		rs = tb.query(s[1], int(s[2]) - mar, int(s[3]) + mar)
+		for r in rs:
+			if len(r[3])==1 and len(r[4])==1 and r[6]=='PASS':
+				i = r[7].split(';')
+				i = {x.split('=')[0]:x.split('=')[1:2] for x in i}
+				#i['CSQ'] = '|'.join(i['CSQ'].split('|')[0:5])
+				i = [i[x][0] for x in infos]
+				r = r[0:7]
+				r.append(s[0])
+				r.extend(i)
+				res.append(r)
+	return res
+
+f = open('/uge_mnt/home/mazin/projects/evo.devo/processed/gnomad201/human.ad.snp.tab', 'w')
+for c in chrs:
+	print(c)
+	snps=getSNPbyChr(c)
+	for s in snps:
+		f.write('\t'.join(s) + "\n")
+
+f.close()
+
+
+

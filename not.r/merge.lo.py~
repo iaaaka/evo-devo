@@ -1,0 +1,80 @@
+#!/usr/bin/python
+import os
+import sys
+
+#usage: python  .py  species.inx > .gtf
+species = ('mouse','chicken','rabbit','rat','human','macaque','opossum')
+fastas  = ('Mus_musculus.GRCm38.dna.primary_assembly.cleanNames.fa','Gallus_gallus.Galgal4.dna.toplevel.cleanNames.fa','Oryctolagus_cuniculus.OryCun2.0.dna.toplevel.cleanNames.fa','Rattus_norvegicus.Rnor_5.0.dna.toplevel.cleanNames.fa','Homo_sapiens.GRCh37.73.dna.primary_assembly.cleanNames.fa','Macaca_mulatta.MMUL_1.dna.toplevel.cleanNames.fa','Monodelphis_domestica.BROADO5.dna.toplevel.cleanNames.fa')
+path2fa = os.environ['HOME']+'/projects/evo.devo/processed/index/'
+path2junc = os.environ['HOME']+'/projects/evo.devo/processed/mapping/junctions/'
+
+
+sp = int(sys.argv[1])-1
+
+def getSeq(fa,seqname,start,stop):
+	if seqname in fa:
+		return(fa[seqname][start:stop])
+	else:
+		return('-')
+
+def readFasta(f):
+	fa = open(f,buffering=1000000)
+	r = {}
+	name = ''
+	lines = []
+	i = 0
+	for line in fa:
+		i += 1
+		line = line.rstrip()
+		if line[0:1] == '>':
+			if name != '':
+				r[name] = ''.join(lines)
+			name = line[1:]
+			lines = []
+		else:
+			lines.append(line)
+	r[name] = ''.join(lines)
+	fa.close()
+	return(r)
+
+def loadSpecies(s,res):
+	fname = species[s]+'To'+species[sp]+'.out'
+	if s == sp:
+		fname = species[sp] + '.merged.gff'
+	gtf = open(path2junc+fname,buffering=1000000)
+	for l in gtf:
+		l = l.rstrip()
+		ll = l.split("\t")
+		k = ll[0]+":"+ll[3]+":"+ll[4]+":"+ll[6]
+		if k in res:
+			v = res[k]
+		else:
+			start = int(ll[3])
+			start = getSeq(fa,ll[0],start+1,start+3)
+			stop =  int(ll[4])
+			stop =  getSeq(fa,ll[0],stop-2,stop)
+			v = [ll[0],ll[3],ll[4],ll[6],start+stop,{}] + [0]*2*len(species) # six columns with general info.
+		if v[6 + s] > 0:
+			v[5][s] = s
+		if s != sp:
+			v[6 + s] = max(v[6 + s],float(ll[5]))
+		else:
+			v[6 + s] = 1
+		v[6 + len(species) + s] = max(v[6 + len(species) + s],int(ll[8].split(":")[6]))
+		res[k] = v
+	gtf.close()
+	return(res)
+
+def printMergedResults(t):
+	for k in t:
+		v = t[k]
+		v[5] = ''.join(sorted([str(k) for k in v[5]]))
+		print "\t".join(str(x) for x in v)
+
+# execute!
+fa = readFasta(path2fa+fastas[sp])
+r = {}
+for s in range(0,len(species)):
+	r = loadSpecies(s,r)
+
+printMergedResults(r)
