@@ -1041,7 +1041,7 @@ plotPanelLetter('H')
 dev.off()
 
 
-# check newborn dependence on threshouls ####
+# newborn on threshouls ####
 load('Rdata/tmp.exon.birth.Rdata')
 ier.max = unlist(lapply(exon.birth.one,function(x)(max(x$int.cov/x$exon.cov,na.rm=T))))
 len =     unlist(lapply(exon.birth.one,function(x)(min(x$length,na.rm=T))))

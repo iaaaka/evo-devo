@@ -247,7 +247,7 @@ caclSegOverlap = function(d){
 }
 
 plotASSegStat = function(x,y,pv,col,xax,lty,pv.at=x[-1:-2],pv.thr=c(' '=1,' '=0.05,'*'=0.01,'**'=0.001,'***'=0),...){
-	ylim = range(y)
+	ylim = range(y,na.rm = TRUE)
 	ylim[2] = ylim[2]+(ylim[2]-ylim[1])*0.05
 	plot(x,y[,2],col=col,xlab='',ylim=ylim,xaxt='n',...)
 	segments(x,y[,1],x,y[,3],col=cols,lty=lty)

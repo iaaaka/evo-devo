@@ -53,6 +53,7 @@ f = function(l,xlim,col=c('green','gray','lightgray'),relative=TRUE,...){
 	abline(h=1/3,lty=3)
 }
 
+
 pdf('figures/paper.figures/2019.04.30/microexons.length.pdf',w=4*4,h=4*7)
 par(mfrow=c(7,4),tck=-0.01,mgp=c(1.3,0.2,0),mar=c(2.5,2.5,1.5,2.5),oma=c(0,0,0,1))
 for(s in names(anns)){
@@ -340,4 +341,32 @@ barplot(t[,2],xlab='# of species with exon (newborn)',ylab='# of exons',main='Mi
 barplot(t[,1],xlab='# of species with exon (newborn)',ylab='# of exons',main='Macroexons')
 dev.off()
 
+# pseudomicroexons ######
+adj.segments = list()
+for(sp in rownames(species)){
+	print(sp)
+	h = readRDS(paste0('Rdata/',sp,'.as.u.all.Rdata'))
+	s = h$seg[order(h$seg$gene_id,h$seg$start),]
+	l = nrow(s)
+	fu = s$gene_id[-1] == s$gene_id[-l] & s$start[-1] == (s$stop[-l]+1)
+	fd = s$gene_id[-l] == s$gene_id[-1] & s$stop[-l] == (s$start[-1]-1)
+	table(c(F,fu),c(fd,F))
+	
+	s$up.ajd.sid = s$dw.ajd.sid = NA
+	s$up.ajd.sid[c(F,fu)] = rownames(s)[c(fu,F)]
+	s$dw.ajd.sid[c(fd,F)] = rownames(s)[c(F,fd)]
+	f = s$strand == -1
+	t = s$dw.ajd.sid[f]
+	s$dw.ajd.sid[f] = s$up.ajd.sid[f]
+	s$up.ajd.sid[f] = t
+	
+	s = s[rownames(h$seg),]
+	s$dw.ajd.med.psi.rate = s$up.ajd.med.psi.rate = NA
+	f = !is.na(s$up.ajd.sid)
+	s$up.ajd.med.psi.rate[f] = apply(h$ir[rownames(s)[f],]/h$ir[s$up.ajd.sid[f],],1,median,na.rm=T)
+	f = !is.na(s$dw.ajd.sid)
+	s$dw.ajd.med.psi.rate[f] = apply(h$ir[rownames(s)[f],]/h$ir[s$dw.ajd.sid[f],],1,median,na.rm=T)
+	adj.segments[[sp]] = s[,c('up.ajd.sid','dw.ajd.sid','up.ajd.med.psi.rate','dw.ajd.med.psi.rate')]
+}
+#saveRDS(adj.segments,'Rdata/adj.segments.sids-n-psi.Rdata')
 

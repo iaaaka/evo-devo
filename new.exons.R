@@ -4,6 +4,7 @@ source('~/skoltech/r.code/util.R')
 library(SAJR)
 library(seqinr)
 library(reshape)
+library("extrafont")
 
 
 species = readRDS('Rdata/species.Rdata')
@@ -732,15 +733,16 @@ o[nchar(names(o))==5]
 params = list(species.col=c(human='red',macaque='orange',mouse='gray',rat='black',rabbit='brown',opossum='magenta',chicken='violet'),tissue.col=c(brain="#3399CC",cerebellum="#33CCFF",heart="#CC0000",kidney="#CC9900",liver="#339900",ovary="#CC3399",testis="#FF6600"))
 params$species.pch=c(human=15,macaque=0,mouse=19,rat=1,rabbit=18,opossum=17,chicken=8)
 
-source('code/r.functions/paper.figures.4.F.R')
+source('code/r.functions/paper.figures.5.F.R')
 #h = readRDS('Rdata/human.as.u.all.Rdata')
 anns = readRDS('Rdata/anns.Rdata')
 per.tissue.age.qv = readRDS('Rdata/per.tissue.age.qv.Rdata')
 meta.tsm = readRDS('Rdata/meta.tsm.Rdata')
 psi.tsm = readRDS('Rdata/psi.tsm.Rdata')
 border.stages = readRDS('Rdata/border.stages.Rdata')
-alt.sp = readRDS('Rdata/paper.figures/alt.sp.Rdata')
-age.dpsi = lapply(rownames(species),function(s)getAgeASchanges(psi.tsm,meta.tsm,0.1,border.stages,s,get.dPSI=T))
+orth.seg.ad.all.tsm = readRDS('Rdata/orth.seg.ad.all.tsm.Rdata')
+alt.sp =getAltSp(orth.seg.ad.all.tsm,0.9 ,4)[rownames(orth.seg.ad.all.tsm$human)] #alt.sp = readRDS('Rdata/paper.figures/alt.sp.Rdata')
+age.dpsi = readRDS('Rdata/age.diam.spline4.with.replicates.Rdata') #age.dpsi = lapply(rownames(species),function(s)getAgeASchanges(psi.tsm,meta.tsm,0.1,border.stages,s,get.dPSI=T))
 names(age.dpsi) = rownames(species)
 age.dpsi$macaque = cbind(age.dpsi$macaque[,1:5],ovary=NaN,age.dpsi$macaque[,6,drop=FALSE])
 
@@ -844,6 +846,7 @@ dev.off()
 # h2te$overlap = pmin(h$seg$stop[h2te$from],rm$genoEnd[h2te$to])-pmax(h$seg$start[h2te$from],rm$genoStart[h2te$to])+1
 # h2te$te.class = rm$repClass[h2te$to]
 # saveRDS(h2te,'Rdata/human.seg2TE.Rdata')
+h2te = readRDS('Rdata/human.seg2TE.Rdata')
 rownames(h2te) = NULL
 range(h2te$overlap)
 hist(h2te$overlap[h2te$sites=='ad'],1:max(h2te$overlap),xlim=c(0,60))
@@ -925,5 +928,181 @@ for(n in names(filters)){
 	imageWithText(sweep(t,2,apply(t,2,sum),'/'),t,names.as.labs = T,xlab='# of ALT species',ylab='Observed species',main=paste0('Gain, ',n,' (',sum(f),')'))
 	t = table(altn[f],obs.sp[f])[,rev(loss)]
 	imageWithText(sweep(t,2,apply(t,2,sum),'/'),t,names.as.labs = T,xlab='# of ALT species',ylab='Observed species',main=paste0('Loss, ',n,' (',sum(f),')'))
+}
+dev.off()
+
+
+# mouse TE ######
+# m = readRDS('Rdata/mouse.as.u.all.Rdata')
+# rmm = read.table('raw/repeats.ucsc/mm10.ucsc.repeat.masker.gz',header = T,comment.char = '')
+# 
+# sort(table(rmm$genoName))
+# sort(table(m$seg$chr))
+# 
+# 
+# u = unique(rmm$genoName)
+# names(u) = u
+# 
+# u = gsub('chr..?_','',u)
+# u = gsub('chr','',u)
+# u = gsub('_random','',u)
+# u = toupper(u)
+# u[u=='M'] = 'MT'
+# u[grep('GL',u)] = paste0(u[grep('GL',u)],'.1')
+# length(unique(u))
+# setdiff(u,m$seg$chr)
+# setdiff(m$seg$chr,u)
+# 
+# rmm$genoName = u[rmm$genoName]
+# table(rm$genoName)
+# 
+# m2te = getAnnOverlap(m$seg,data.frame(chr_id=rmm$genoName,start=rmm$genoStart,stop=rmm$genoEnd),T)$overlap
+# m2te = as.data.frame(m2te)
+# m2te = cbind(m2te,seg_id=rownames(m$seg)[m2te$from],m$seg[m2te$from,c('sites','type','length')])
+# m2te$overlap = pmin(m$seg$stop[m2te$from],rmm$genoEnd[m2te$to])-pmax(m$seg$start[m2te$from],rmm$genoStart[m2te$to])+1
+# m2te$te.class = rmm$repClass[m2te$to]
+# saveRDS(m2te,'Rdata/mouse.seg2TE.Rdata')
+m2te = readRDS('Rdata/mouse.seg2TE.Rdata')
+h2te = readRDS('Rdata/human.seg2TE.Rdata')
+born.seg.ids = t(sapply(exon.birth.one,function(x){x$seg_id}))
+colnames(born.seg.ids) = rownames(species)
+rownames(born.seg.ids) = NULL
+nbf = nb.stat$adj.exons== 0 & nb.stat$full.obs==1 & len < 500
+obs.sp
+
+# human 
+min.overlap=10
+h = readRDS('Rdata/human.as.u.all.Rdata')
+sps = c('h','hq','hqmrb','hqmrbo')
+hstat = NULL
+for(s in sps){
+	f = born.seg.ids[nbf & obs.sp == s,'human'] %in% h2te$seg_id[h2te$overlap>=min.overlap]
+	hstat = rbind(hstat,c(overlap.te=sum(f),total=length(f)))
+}
+rownames(hstat) = sps
+e = rownames(h$seg)[h$seg$sites=='ad' & h$seg$type=='EXN'] %in% h2te$seg_id[h2te$overlap>=min.overlap]
+a = rownames(h$seg)[h$seg$sites=='ad' & h$seg$type=='ALT'] %in% h2te$seg_id[h2te$overlap>=min.overlap]
+hstat = rbind(hstat,
+							alt=c(sum(a),length(a)),
+							const=c(sum(e),length(e)))
+
+hstat  = cbind(hstat ,t(apply(hstat,1,function(x)my.binom.test(x[1],x[2]-x[1]))))
+
+
+h.teclass.stst = sort(table(factor(h2te$te.class[h2te$seg_id %in% born.seg.ids[nbf & obs.sp %in% sps,'human'] & h2te$overlap>=min.overlap],levels = unique(h2te$te.class))),decreasing = T)
+h.teclass.stst['total'] = sum(nbf & obs.sp %in% sps)
+
+# mouse 
+m = readRDS('Rdata/mouse.as.u.all.Rdata')
+sps = c('m','mr','mrb','hqmrb','hqmrbo')
+mstat = NULL
+for(s in sps){
+	f = born.seg.ids[nbf & obs.sp == s,'mouse'] %in% m2te$seg_id[h2te$overlap>=min.overlap]
+	mstat = rbind(mstat,c(overlap.te=sum(f),total=length(f)))
+}
+rownames(mstat) = sps
+e = rownames(m$seg)[m$seg$sites=='ad' & m$seg$type=='EXN'] %in% m2te$seg_id[m2te$overlap>=min.overlap]
+a = rownames(m$seg)[m$seg$sites=='ad' & m$seg$type=='ALT'] %in% m2te$seg_id[m2te$overlap>=min.overlap]
+mstat = rbind(mstat,
+							alt=c(sum(a),length(a)),
+							const=c(sum(e),length(e)))
+
+mstat  = cbind(mstat ,t(apply(mstat,1,function(x)my.binom.test(x[1],x[2]-x[1]))))
+
+m.teclass.stst = sort(table(factor(m2te$te.class[m2te$seg_id %in% born.seg.ids[nbf & obs.sp %in% sps,'mouse'] & m2te$overlap>=min.overlap],levels = unique(m2te$te.class))),decreasing = T)
+m.teclass.stst['total'] = sum(nbf & obs.sp %in% sps)
+
+#pdf('figures/newborn/TE.human-n-mouse.pdf',w=7,h=7)
+pdf('figures/paper.figures/6/suppl/new.order/S19.TE.human-n-mouse.pdf',w=6,h=6,family='Arial')
+par(mfrow=c(2,2),tck=-0.01,mgp=c(1.1,0.2,0),mar=c(4,2,1,0),oma=c(0,0,0,0))
+plotArea(1:4,hstat[1:4,3:5],col = 'orange',xlim=c(1,6),new=T,xaxt='n',ylab='proportion of TE overlap',main='Human',xlab='',lwd=3,bty='n')
+points(5:6,hstat[5:6,3],col=c('black','gray'),pch=19)
+segments(5:6,hstat[5:6,5],5:6,hstat[5:6,4],col=c('black','gray'))
+axis(1,1:6,rownames(hstat),las=3)
+
+plotArea(1:5,mstat[1:5,3:5],col = 'orange',xlim=c(1,7),new=T,xaxt='n',ylab='proportion of TE overlap',main='Mouse',xlab='',lwd=3,bty='n')
+points(6:7,mstat[6:7,3],col=c('black','gray'),pch=19)
+segments(6:7,mstat[6:7,5],6:7,mstat[6:7,4],col=c('black','gray'))
+axis(1,1:7,rownames(mstat),las=3)
+
+
+par(mar=c(7,2,1,0))
+barplot(t(as.matrix(h.teclass.stst[1:7]/h.teclass.stst['total'])),las=3,ylab='Fraction of exons that overal TE class')
+barplot(t(as.matrix(m.teclass.stst[1:7]/m.teclass.stst['total'])),las=3,ylab='Fraction of exons that overal TE class')
+dev.off()
+
+# examples #####
+all.anns = readRDS('Rdata/all.anns.Rdata')
+ens.ge.marg.tsm = readRDS('Rdata/ens.ge.marg.tsm.Rdata')
+orth.ens.genes = readRDS('Rdata/orth.ens.genes.Rdata')
+meta.tsm = readRDS('Rdata/meta.tsm.Rdata')
+load('Rdata/tmp.exon.birth.Rdata')
+h2te = readRDS('Rdata/human.seg2TE.Rdata')
+# APP ENSG00000142192
+h = revList(seg2ens$human)
+h[['ENSG00000142192']] #hum.40661
+exon.birth.one[sapply(exon.birth.one,function(x)x$gene_id[1] == 'hum.40661')] #t860 hum.40661.s11
+nb.stat['t860',]
+blast.sp['t860']
+
+# born from TE?
+h2te[h2te$seg_id=='hum.40661.s11',] #no
+# protein domain?
+# check filters
+cov = readRDS('Rdata/newborn.exon.cov/hqmrb-hqmrb.t860.Rdata')
+plotReadCov(cov$human,min.junc.cov = 10000)
+hgid = 'ENSG00000142192'
+
+bams = paste0('processed/mapping/hisat2.s/human/',meta$fname[meta$species=='human'],'.bam')
+set.seed(1)
+bams = sample(bams,10)
+app.human.whole.cov=getReadCoverage(bams,'21',27252861,27543446,1)
+
+pdf('figures/paper.figures/5/7/APP.pdf',w=6,h=8,family='Arial')
+par(tck=-0.01,mgp=c(1.1,0.2,0),mar=c(2,2,1,0),oma=c(0,0,0,1),xpd=F)
+layout(matrix(c(1,1,1:22),ncol=3,byrow = T),widths = c(3,1,1))
+i = 't860'
+
+
+maxcov = max(app.human.whole.cov$cov,app.human.whole.cov$juncs$score)
+plotReadCov(app.human.whole.cov,reverse = T,min.junc.cov = maxcov*0.05,bty='n',xlab='',ylab='',yaxt='n',
+						main=substitute(paste(italic('APP'), " - amyloid beta (A4) precursor protein")),ylim=c(-0.2*maxcov,maxcov),plot.junc.only.within=T,junc.lwd=2,junc.col='black')
+seg = all.anns$human[all.anns$human$gene_id=='hum.40661' & all.anns$human$sites=='ad',]
+segments(min(seg$start),-0.12*maxcov,max(seg$stop),-0.12*maxcov)
+
+rect(seg$start,-0.2*maxcov,seg$stop,-0.04*maxcov,col = 'black',border = NA)
+seg = all.anns$human['hum.40661.s11',]
+rect(seg$start,-0.2*maxcov,seg$stop,-0.04*maxcov,col = 'red',border = NA)
+
+
+nb = exon.birth.one[[i]]
+for(s in rownames(species)){
+	if(all.anns.[[s]][nb[s,'useg_id'],'strand'] == 1){
+		start = all.anns.[[s]][nb[s,'useg_id'],'start']
+		stop = all.anns.[[s]][nb[s,'dseg_id'],'stop']
+	}else{
+		start = all.anns.[[s]][nb[s,'dseg_id'],'start']
+		stop = all.anns.[[s]][nb[s,'useg_id'],'stop']
+	}
+	if(stop+100 <= 536870912 && start - 100 <= 536870912){
+		maxcov = max(cov[[s]]$cov,cov[[s]]$juncs$score)
+		plotReadCov(cov[[s]],reverse = (all.anns.[[s]][nb[s,'useg_id'],'strand'] == -1),yaxt='n',min.junc.cov = maxcov*0.05,bty='n',xlab=paste0('Chr ',all.anns.[[s]][nb[s,'useg_id'],'chr_id']),ylab='',
+								main=s,ylim=c(-0.2*maxcov,maxcov),plot.junc.only.within=T,junc.lwd=2,junc.col='black')
+		abline(h = -0.12*maxcov)
+		seg = all.anns.[[s]][nb[s,'useg_id'],]
+		rect(seg$start,-0.2*maxcov,seg$stop,-0.04*maxcov,col = 'black',border = NA)
+		seg = all.anns.[[s]][nb[s,'dseg_id'],]
+		rect(seg$start,-0.2*maxcov,seg$stop,-0.04*maxcov,col = 'black',border = NA)
+	}else
+		plot.new()
+	
+	if(!is.na(nb[s,'seg_id'])){
+		rect(nb[s,'start'],-0.2*maxcov,nb[s,'stop'],-0.04*maxcov,col = 'red',border = NA)
+	}	
+	if(!is.na(nb[s,'seg_id']) && sum(!is.na(born.exn.sajr[[s]]$ir[nb[s,'seg_id'],colnames(born.exn.sajr[[s]]$ir) %in% rownames(meta)]))>0)
+		plotTissueAgeProile(born.exn.sajr[[s]]$ir[nb[s,'seg_id'],],meta,age.axis = 'rank',ylab='PSI',main='AS',bty='n')
+	else
+		plot.new()
+	plotTissueAgeProile(ens.ge.marg.tsm[[s]][orth.ens.genes[hgid,s],],meta.tsm,age.axis = 'rank',ylab='RPKM',main='GE',bty='n')
 }
 dev.off()

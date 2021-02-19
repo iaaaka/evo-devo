@@ -1,3 +1,94 @@
+bootstrapDevAS = function(m,d,sps,replace=TRUE,N=100,ss=c('ad','aa','dd','da'),only.samples=FALSE){
+	m = m[!is.na(m$mouse.stage) & m$species %in% sps, ]
+	d = d[,colnames(d$ir) %in% rownames(m)]
+	stat = apply(table(factor(m$species,levels = sps),m$mouse.stage,m$tissue),2:3,min)
+	m = m[colnames(d$ir),]
+	
+	res = llply(1:N,function(i){
+		#cat(i,'   ')
+		# sample samples
+		sids = c()
+		for(t in colnames(stat)){
+			for(s in rownames(stat)){
+				sids = c(sids,sample(rownames(m)[m$mouse.stage==s & m$tissue==t],stat[s,t],replace = replace))
+			}
+		}
+		m = m[sids,]
+		if(only.samples)
+			return(m)
+		dt = d[,sids]
+		colnames(dt$ir) = colnames(dt$i) = colnames(dt$e) = rownames(m) # to fix names of duplicated due to bootstrap samples
+		# filter
+		f = rep(FALSE,length(dt))
+		na = is.na(dt$ir)
+		for(tis in unique(m$tissue)){
+			cinx = m$tissue==tis
+			f = f | (apply(!na[,cinx],1,mean) > 0.6 & apply(dt$ir[,cinx],1,function(x){x=x[!is.na(x)];sum(x>0.1 & x < 0.9)>3}))
+		}
+		dt = dt[f,]
+		na = is.na(dt$ir)
+		# test devAS
+		# I will use species ages.. but maybe mouse-scale is more appropriate
+		tissues = unique(m$tissue)
+		qv = sapply(tissues,function(tissue){testASAge(dt,m,tissue,min.cov.sams=0.6,.parallel=FALSE)})
+		patt = matrix('-',ncol=length(tissues),nrow=length(dt),dimnames = list(rownames(dt$ir),tissues))
+		for(t in colnames(qv)){
+			# 'c' mean that exon passed coverage thershold
+			cinx = m$tissue==t
+			patt[apply(!na[,cinx],1,mean) > 0.6,t] = 'c'
+			qv[apply(!na[,cinx],1,mean) <= 0.6,t] = NA # just to be sure. it have to be done in testASAge
+			#
+			patt[!is.na(qv[,t]),t] = 'n'
+			f = !is.na(qv[,t]) & qv[,t] < 0.05
+			if(sum(f)==0) next
+			a = m$age.use[m$tissue==t]
+			x = apply(dt$ir[f,m$tissue==t,drop=F],1,function(y)getDevASPattern1(a,y,4,1000))
+			x = t(x)
+			x = x[apply(is.na(x),1,sum)==0 & (x[,1]+x[,2])>0 & x[,'max']-x[,'min'] > 0.2,,drop=F]
+			if(nrow(x) == 0 ) next
+			u = x[,1]/(x[,1]+x[,2])
+			tim = x[,3]/x[,1]-x[,4]/x[,2]
+			thr = 0.3
+			patt[rownames(x),t] = 'du'
+			patt[rownames(x)[!is.na(tim) & tim < 0],t] = 'ud'
+			patt[rownames(x)[u < thr],t] = 'd'
+			patt[rownames(x)[u > (1 - thr)],t] = 'u'
+		}
+		gc()
+		patt
+	},.parallel = TRUE)
+	res
+}
+
+
+loadIntronCounts = function(files,names,ints=NULL){
+	data = list()
+	for(i in 1:length(files)){
+		cat('\r',i,' ',length(files),'       ')
+		x = read.table(files[i],header = T)
+		if(!is.null(ints))
+			x = x[grepl(paste(ints,collapse = '|'),x[,1]),]
+		data[[length(data)+1]] = x
+	}
+	if(!is.null(ints))
+		ints = unique(unlist(lapply(data,'[',1)))
+	r = matrix(0,ncol=length(names),nrow=length(ints),dimnames = list(ints,names))
+	for(i in 1:length(names)){
+		r[data[[i]][,1],i] = data[[i]][,2]
+	}
+	ints = strsplit(ints,'[:-]')
+	r = list(intron=data.frame(chr_id=sapply(ints,'[',1),
+														 start =as.numeric(sapply(ints,'[',2)),
+														 stop  =as.numeric(sapply(ints,'[',3)),
+														 strand=as.numeric(sapply(ints,'[',4))
+	),
+	cnt=r)
+	r$intron$strand[is.na(r$intron$strand)] = -1
+	rownames(r$intron) = rownames(r$cnt)
+	class(r) = c('sajr','list')
+	r
+}
+
 getExonNumberByGene = function(gtf){
 	a = read.table(gtf,sep='\t')
 	a = a[a$V3=='exon',]
@@ -10,6 +101,15 @@ getExonNumberByGene = function(gtf){
 	y$exon_number = as.numeric(y$exon_number)
 	y = do.call(rbind,lapply(split(y,y$transcript_id),function(x)x[order(-x$exon_number)[1],]))
 	split(y$exon_number,y$gene_id)
+}
+
+getDiamBySpline = function(x,y,df){
+	f = !is.na(x) & !is.na(y)
+	x = x[f]
+	y = y[f]
+	if(length(unique(x))<= df) return(NA)
+	p = predict(smooth.spline(x,y,df=df))$y
+	max(p)-min(p)
 }
 
 getAdjStageChange = function(as,ge,m,tissue,s2e,melt=TRUE){
@@ -157,6 +257,28 @@ ftHexAge = function(h,a,dir){
 		}
 	}
 	list(pv=pv,or=or)
+}
+
+downSampledevAS = function(as,dirs,sites='ad',per.tissue=FALSE){
+	r=lapply(rownames(species),function(s){
+		x = as[[s]][anns[[s]]$sites==sites,]
+		cnt = unlist(lapply(dirs,function(dir)apply(x==dir,2,sum)))
+		mcnt = min(cnt[cnt>0])
+		for(i in 1:ncol(x)){
+			if(per.tissue)
+				mcnt = min(sapply(dirs,function(dir)sum(x[,i]==dir)))
+			for(dir in dirs){
+				sids = which(x[,i]==dir)
+				if(length(sids)>mcnt){
+					torem=sample(sids,length(sids)-mcnt)
+					x[torem,i] = 'n'
+				}
+			}
+		}
+		x
+	})
+	names(r) = rownames(species)
+	r
 }
 
 plotExpAndPsiForNewExons = function(s,sps,born.psi,born.ids,exp,center=F,scale=F,max.na.prop = 1,ylab.fun.name=''){
@@ -458,13 +580,6 @@ plotGnomadFreqsByID = function(sids,col){
 	invisible(r)
 }
 
-
-
-revList = function(l){
-	s = sapply(l,length)
-	n = lapply(1:length(l),function(i){rep(names(l)[i],s[i])})
-	split(unlist(n),unlist(l))
-}
 
 
 plotBinomBar2 = function(s,t,...){
@@ -817,6 +932,7 @@ plotSNPFreq = function(g,s,title='',int.mar=100,cl.names=c('-2'='const.','-1'='a
 }
 
 getReadCoverage = function(bams,chr,start,end,strand=NA,plot=FALSE,min.junc.cov=0,plot.junc.only.within=FALSE,ylim=NULL,reverse=FALSE,...){
+	stop("deprecated, see util.R")
 	if(start>end){
 		t = start
 		start = end
@@ -1029,6 +1145,7 @@ plotNumberOfAltExons = function(pv.thr,good.segs){
 }
 
 plotLine = function(x,y,cor.method='pearson',line.col='red',leg.pos='topright',line.lwd=1,...){
+	stop("use util.R")
 	plot(x,y,...)
 	abline(lm(y~x),col=line.col,lwd=line.lwd)
 	c = cor.test(x,y,m=cor.method)
@@ -1331,11 +1448,12 @@ findOrthExonsByNeighbors = function(a,o,s='human',returnBad=FALSE){
 	if(returnBad)
 		return(as.list(bad.data))
 	res = as.list(res)
+	clnm = colnames(res[[1]][[length(res[[1]])]])
 	res = sapply(res,function(x){
-		lapply(1:nrow(x[[1]]),function(i){do.call(rbind,lapply(x,function(z){cbind(seg.id=rownames(z)[i],z[i,],group.size=nrow(z))}))})
+		lapply(1:nrow(x[[1]]),function(i){do.call(rbind,lapply(x,function(z){cbind(seg.id=rownames(z)[i],z[i,clnm],group.size=nrow(z))}))})
 	})
 	res = unlist(res,recursive = FALSE)
-	res = do.call(rbind,lapply(res,function(x){x=data.frame(c(as.list(x$seg.id),range(x$length),length(unique(x$length%%3))==1,x$group.size[1]));colnames(x) = c(names(a),'length.min','length.max','same.frame','group.size');x}))
+	do.call(rbind,lapply(res,function(x){x=data.frame(c(as.list(x$seg.id),range(x$length),length(unique(x$length%%3))==1,x$group.size[1]));colnames(x) = c(names(a),'length.min','length.max','same.frame','group.size');x}))
 }
 
 
@@ -2370,7 +2488,7 @@ calcAllPairsFT = function(m){
 
 
 plotFTMotifSimMatrix = function(m,plot.nums=FALSE,pv.thr=0.01,pv.col=c(gray=1,yellow=1e-2,orange=1e-5,red=1e-20,none=0),or.col=c(blue=0,'#0000FFAA'=1/3,'#0000FF55'=1/1.5,gray=1,yellow=1.5,orange=3,red=Inf),main='',leg.cex=1,diag.col='white',diag.text=colnames(m)){
-	stop('function is in paper.figures.4.F.R file')
+	stop('function is in paper.figures.5.F.R file')
 }
 
 
@@ -2896,39 +3014,39 @@ calcInterSpeciesCorr = function(psi,method='sp',min.obs=10,noise=0.01,seed=1234)
 	r
 }
 
-plotTissueAgeProile = function(d,m,df=5,error.bar=NULL,ylim=NULL,xlim=NULL,by.species=FALSE,age.axis='log',tissues=unique(m$tissue),col=NULL,add=FALSE,pch=NULL,lty=1,cex=NULL,xlab='Age (days)',plot.xaxt=TRUE,lwd=3,...){
+plotTissueAgeProile = function(d,m,df=5,error.bar=NULL,ylim=NULL,xlim=NULL,by.species=FALSE,age.axis='log',tissues=unique(m$tissue),col=NULL,add=FALSE,pch=NULL,lty=1,cex=NULL,xlab='Age (days)',plot.xaxt=TRUE,lwd=3,age=NULL,...){
 	if(!is.null(pch))
 		m$pch = pch
+	if(!is.null(col))
+		m$col = col
 	if(!is.null(cex))
 		m$cex = cex
 	if(age.axis == 'rank')
 		m$age.use = m$age.rank
 	m = m[m$tissue %in% tissues,]
 	if(sum(!is.na(d)) == 0){
-		plot(1,col=m$col,pch=m$pch,cex=m$cex,xaxt='n',t='n',xlab=xlab,...)
+		plot(1,xaxt='n',t='n',xlab=xlab,...)
 		return()
 	}
 	if(by.species){
 		m$tissue=m$species
 		m$col=m$species.col
 	}
-	cmn = intersect(rownames(m),names(d))
+	if(!is.null(age))
+		m$age.use = age
+	cmn = intersect(rownames(m)[!is.na(m$age.use)],names(d))
 	m = m[cmn,]
 	d = d[cmn]
 	if(is.null(ylim))
 		ylim = range(d,error.bar,na.rm=T)
 	if(is.null(xlim))
 		xlim = range(m$age.use)
-	if(is.null(col))
-		col = m$col
-	if(length(col) == 1)
-		col = rep(col,length(d))
 	if(add)
-		points(m$age.use,d,col=col,pch=m$pch,cex=m$cex)
+		points(m$age.use,d,col=m$col,pch=m$pch,cex=m$cex)
 	else
-		plot(m$age.use,d,col=col,pch=m$pch,cex=m$cex,xaxt='n',xlab=xlab,ylim=ylim,xlim=xlim,...)
+		plot(m$age.use,d,col=m$col,pch=m$pch,cex=m$cex,xaxt='n',xlab=xlab,ylim=ylim,xlim=xlim,...)
 	if(!is.null(error.bar)){
-		segments(m$age.use,error.bar[,1],m$age.use,error.bar[,2],col=col)
+		segments(m$age.use,error.bar[,1],m$age.use,error.bar[,2],col=m$col)
 	}
 	for(t in unique(m$tissue)){
 		x = m$age.use[m$tissue == t]
@@ -2941,10 +3059,10 @@ plotTissueAgeProile = function(d,m,df=5,error.bar=NULL,ylim=NULL,xlim=NULL,by.sp
 		y = y[o]
 		df. = min(df,length(unique(x))-2)
 		if(df.<=1){
-			points(x,y,t='b',col=col[m$tissue == t][1],lwd=3,lty=lty,cex=0)
+			points(x,y,t='b',col=m$col[m$tissue == t][1],lwd=3,lty=lty,cex=0)
 		}else{
 			l=predict(smooth.spline(x,y,df=df.,tol=1e-10),seq(from=min(x),to=max(x),length.out=50))
-			lines(l,lwd=lwd,col=col[m$tissue == t][1],lty=lty)
+			lines(l,lwd=lwd,col=m$col[m$tissue == t][1],lty=lty)
 		}
 	}
 		if(plot.xaxt){
@@ -2980,11 +3098,13 @@ testASTissueAge = function(d,m){
 	cbind(tissue=p[,2],age=apply(p[,3:5],1,min),tissue.age=apply(p[,6:8],1,min))
 }
 
-testASAge = function(d,m,t,min.cov.sams=0){
+testASAge = function(d,m,t,min.cov.sams=0,return.pv=FALSE,.parallel=TRUE){
 	m = m[m$tissue==t & rownames(m) %in% colnames(d$ir),]
 	d = d[,rownames(m)]
-	p = fitSAGLM(d,formula(x ~ a + I(a^2) + I(a^3)),list(a=m$age.use),0.05,.parallel = TRUE,return.pv=TRUE)
+	p = fitSAGLM(d,formula(x ~ a + I(a^2) + I(a^3)),list(a=m$age.use),0.05,.parallel = .parallel,return.pv=TRUE)
 	p[apply(!is.na(d$ir),1,mean) < min.cov.sams,] = NA
+	if(return.pv)
+		return(p)
 	for(i in 2:ncol(p))
 		p[,i] = p.adjust(p[,i],method = 'BH')
 	apply(p[,-1],1,min)
@@ -3224,3 +3344,33 @@ plotASStat = function(sgn=NULL,seg=NULL,matrix=NULL,frac=FALSE,col=c(ad='red',da
 	}
 	invisible(matrix)
 }
+
+plotIntronExonStructure = function(a,new=TRUE,ylim=c(0,1),xlim=NULL,...){
+	gstart = min(a$start)
+	gstop = max(a$stop)
+	if(all(a$strand==-1)){
+		gstop = min(a$start)
+		gstart = max(a$stop)
+	}
+	if(is.null(xlim))
+		xlim=c(gstart,gstop)
+	if(new)
+		plot(1,t='n',xlim=xlim,ylim=ylim,xlab=paste0('Chr ',a$chr_id[1]),yaxt='n',ylab='',...)
+	
+	segments(gstart,mean(ylim),gstop,mean(ylim))
+	
+	f = a$type=='EXN'
+	if(sum(f)>0)
+		rect(a$start[f],ylim[1],a$stop[f],ylim[2],border = NA,col='green')
+	f = a$type!='EXN' & a$sites %in% c('ad','sd','ae')
+	if(sum(f)>0)
+		rect(a$start[f],ylim[1],a$stop[f],ylim[2],border = NA,col='red')
+	d = ylim[2]-ylim[1]
+	f = a$type!='EXN' & !f & a$sites != 'da'
+	if(sum(f)>0)
+		rect(a$start[f],ylim[1]+d/4,a$stop[f],ylim[2]-d/4,border = NA,col='orange')
+	f = a$sites == 'da'
+	if(sum(f)>0)
+		rect(a$start[f],ylim[1]+d/8,a$stop[f],ylim[2]-d/8,border = NA,col='blue')
+}
+

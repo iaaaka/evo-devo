@@ -1,0 +1,16 @@
+author: Ray Marin Florez <Ray.MarinFlorez@unil.ch> :
+
+It's done! I have put in your server all the pairwise chain files for mouse, rat and chicken. I am working on those for rabbit and opossum. I have also put all the scripts required to go from masked fasta files to chain files. The order to use them is the following:
+
+1. align.mouse.chr1.rat.chr1.sh - this script aligns two pieces of sequence from the two genomes going from .fasta to .chain. It uses the script "send.lastz.sh". I split all genomes either by chromosome or by groups of contigs that add up to ~100MB. Then I use the script "generate.bsub.scripts.sh" to create all the align[...].sh files. This is the time consuming step of the pipeline.
+
+2. chain.liftover.sh - This scripts takes all the chains obtained in the previous step and creates the final chain for liftOver. This script should be used if you want to obtain the chain "SP1_to_SP2" according to the species order used in the alignment step. In other words, if the target and query species are concordant in the two steps. 
+
+3. chain.liftover.swap.sh - This scripts does essentially the same job as the previous one but inverting the order of the species. This script must be used if you want to obtain the chain "SP2_to_SP1" using the same alignments obtained in step 1. This script uses the script "swap.chains.sh".
+
+About the bam-to-fq conversion I don't know if I know better than you. Once I tried to quickly use someone else's tool for this but I noticed something strange. I don't remember exactly what or how important was that because it was a long time ago. So I never did the conversion. Since it was for a different small project I just downloaded again the original fastq files. 
+
+Please let me know if something is not clear or if I forgot something.
+
+I forgot to mention the file "substitution.martix". This file is specific for each pair of species. I use the matrices available at the UCSC as you can see in the "send.lastz.sh" script.
+Best,

@@ -1,4 +1,5 @@
 library(SAJR)
+library(png)
 options(stringsAsFactors = FALSE)
 source('code/r.functions/load.all.data.F.R')
 source('~/skoltech/r.code/util.R')
@@ -10,7 +11,9 @@ anns = readRDS('Rdata/anns.Rdata')
 orth.ads.all.sp = readRDS('output/shiny/Rdata/2020/orth.segs.all.types-species.Rdata')
 psi.tsm.shiny = readRDS('output/shiny/Rdata/2020/psi.tsm.types-species.Rdata')
 seg2ens = readRDS('Rdata/seg2ens.Rdata')
-
+age.dpsi = readRDS('Rdata/age.diam.spline4.with.replicates.Rdata')
+age.segs = readRDS('Rdata/devAS.4patt.Rdata')
+per.tissue.age.qv = readRDS('Rdata/per.tissue.age.qv.Rdata')
 # 2020 #####
 # _orth ######
 # for 7 species I added 3376 exons by "synteny", for other phylo groups I'll add only liftovered

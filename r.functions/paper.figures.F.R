@@ -465,7 +465,7 @@ caclCramersVPerCols = function(d,pvalue=FALSE){
 	r
 }
 
-imageWithText = function(d,t=NULL,digits=2,text.col=NULL,xaxlab=rownames(d),yaxlab=colnames(d),las=1,...){
+imageWithText = function(d,t=NULL,digits=2,text.col=NULL,xaxlab=rownames(d),yaxlab=colnames(d),...){
 	if(is.null(t))
 		t = round(d,digits = digits)
 	x = 1:nrow(d)
@@ -475,9 +475,9 @@ imageWithText = function(d,t=NULL,digits=2,text.col=NULL,xaxlab=rownames(d),yaxl
 		text.col = 'black'
 	text(rep(x,times=length(y)),rep(y,each=length(x)),t,col=text.col)
 	if(!is.null(xaxlab))
-		axis(1,x,xaxlab,las=las)
+		axis(1,x,xaxlab)
 	if(!is.null(yaxlab))
-		axis(2,y,yaxlab,las=las)
+		axis(2,y,yaxlab)
 }
 
 imageSpSpCramer = function(d,...){

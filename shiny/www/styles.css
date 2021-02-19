@@ -1,0 +1,352 @@
+body {
+	font-family: 'Quicksand', sans-serif;
+}
+
+h4 {
+	display: inline-block;
+	margin: 10px;
+}
+
+.sideChoices {
+	/* margin-top: 160px; */
+}
+
+#absNav {
+	z-index: 100;
+}
+
+#title {
+  margin-left: 150px;
+  margin-top: 11px;
+}
+
+#link_hklab,
+#link_lnc {
+	position: relative;
+	display: inline-block;
+	font-size: 1.5vw;
+	padding-right: 30px;
+}
+
+@media screen and (min-width: 2000px) {
+  #link_hklab,
+  #link_lnc {
+    font-size: 30px;
+  }
+}
+
+#link_hklab:hover,
+#link_hklab:focus,
+#link_lnc:hover,
+#link_lnc:focus {
+	text-decoration: none;
+}
+
+body > div > div.row > div.col-sm-3 > form > div > div:nth-child(4) > * {
+	padding: 5px;
+}
+
+.well {
+	background-color: transparent;
+	border: none;
+	-webkit-box-shadow: none;
+	-moz-box-shadow: none;
+	box-shadow: none;
+	padding: 0 10px 10px 10px;
+}
+
+.side_panel > div {
+	padding: 10px;
+	margin-top: 10px;
+	border-radius: 10px 10px 10px 10px;
+	border: 1px solid #ccc;
+}
+
+#topBar > * {
+    display: inline-block;
+    position: absolute;
+}
+
+#topBar {
+  height: 147px;
+  max-height: 200px;
+  padding: 8px 8px 0 26px;
+  border-bottom: 1px solid #CCC;
+  background: #FFF;
+}
+
+#topBar h2 {
+  font-size: 2.4vw;
+}
+
+@media screen and (min-width: 2000px) {
+  #topBar h2 {
+    font-size: 48px;
+  }
+}
+
+#gene_title {
+  display: none;
+	position: fixed;
+	/*top: -100px;*/
+	right: 0;
+	padding: 15px;
+	margin: 20px;
+	border-radius: 10px 10px 10px 10px;
+	border: 1px solid #ccc;
+  max-width: 30vw;
+  background-color: #fff;
+}
+
+#gene_title > h3 {
+	margin-top: 0;
+	margin-bottom: 5px;
+	font-size: 2vw;
+}
+
+#gene_title > p {
+	margin: 0;
+}
+
+#mainPicture {
+  width: 150px;
+  margin-left: 10px;
+  /*margin-top: 13px;*/
+}
+
+#aliases {
+	position: fixed;
+	top: 120px;
+	right: 20px;
+}
+
+#ini_spe {
+	position: fixed;
+	top: 150px;
+	right: 20px;
+	text-align: right;
+}
+
+#arrow {
+	position: fixed;
+	bottom: 6px;
+	right: 10px;
+	opacity: 0.25;
+	width: 65px;
+}
+
+#scroll {
+	position: fixed;
+	bottom: 3px;
+	right: 25px;
+	font-size: 21px;
+	text-decoration: none;
+	color: #d3d3d3;
+}
+
+body > div > div.row > div.col-sm-9 > div > div {
+	margin: 10px;
+}
+
+.pbusy {
+	position: absolute;
+	left: 30vw;
+	right: 1vw;
+	display: none;
+	text-align: center;
+	padding-top: 45vh;
+}
+
+#spinner {
+	margin-bottom: 10px;
+}
+
+@media (max-width: 1000px) {
+  #topBar h2 {
+      font-size: 3vw;
+  }
+}
+
+@media (max-width: 750px) {
+  #title {
+    margin-left: 90px;
+  }
+  
+  #topBar {
+    padding: 8px 8px 0 8px;
+    height: 102px;
+  }
+
+/*  #topBar h2 {
+    font-size: 3.5vw;
+  }*/
+
+  #link_hklab,
+  #link_lnc {
+    font-size: 2.5vw;
+  }
+  
+  #aliases {
+    display: none;
+  }
+  
+  #mainPicture {
+    width: 100px;
+    margin: 0;
+  }
+  
+  .pbusy {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background-color: lightgray;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.1;
+  }
+
+  #spinner {
+  	flex: 0 1 auto;
+  }
+  
+  #gene_title {
+    max-width: 23vw;
+    margin: 10px;
+  }
+/*  
+  #gene_title > h4 {
+    font-size: 15px;
+    margin: 0;
+  }
+  */
+  #gene_title > h3 {
+    font-size: 3.5vw;
+  }
+
+  #gene_title > h4 {
+    margin: 0;
+    font-size: 1.8vw;
+  }
+  
+  .sideChoices {
+    margin-top: 190px;
+  }
+  
+}
+
+@media (max-width: 600px) {
+  #mainPicture {
+    top: 70px;
+    margin: 0;
+    width: 85px;
+  }
+  
+  .picLeft {
+    left: 28px;
+  }
+  
+  #title {
+    margin-left: 0;
+    margin-top: 0;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    justify-content: center;
+  }
+  
+  #topBar {
+    height: 150px;
+    padding: 8px 8px 0 8px;
+    justify-content: space-around;
+    display: flex !important;
+  }
+
+  #topBar h2 {
+    font-size: 6vw;
+    margin-top: 3px;
+    margin-bottom: 6px;
+  }
+  
+  #link_hklab, 
+  #link_lnc {
+    font-size: 3vw;
+  }
+  
+/*  #show_selected {
+      display: flex !important;
+      position: relative;
+      top: 65px;
+      left: 0;
+      height: 30px;
+      justify-content: center;
+  }*/
+  
+  #gene_title {
+    /*max-width: 50vw;*/
+    top: 65px !important;
+    right: 15px;
+    left: 130px;
+    max-width: 62vw;
+    margin: 10px;
+    padding: 8px;
+  }
+  
+  #gene_title > * {
+    display: inline-block;
+  }
+  
+  #gene_title p {
+    font-size: 10px;
+    margin: 0 12px;
+  }
+
+  #gene_title h3 {
+    font-size: 20px;
+  }
+  
+  #gene_title h4 {
+    font-size: 12px;
+  }
+  
+  .shiny-plot-output,
+  .shiny-plot-output img {
+  	height: 200px !important;
+  }
+}
+  
+.container-fluid {
+  margin-bottom: 20px;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  text-align: center;
+  background-color: white;
+  border-top: solid thin #d3d3d3;
+}
+
+.col-sm-8.sideChoices {
+  margin-top: 0 !important;
+}
+
+.well.sideChoices {
+  margin-top: 0 !important;
+}
+
+.info-text {
+  margin-top: 160px;
+}
+
+.info-text > p {
+  font-size: 11pt;
+}
+
+.info-text > p > span {
+  font-weight: bold;
+}

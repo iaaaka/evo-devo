@@ -1,5 +1,5 @@
 #setwd('~/skoltech/projects/evo.devo/')
-options(stringsAsFactors = FALSE)
+
 source('code/r.functions/load.all.data.F.R')
 source('code/r.functions/paper.figures.F.R')
 library(SAJR)
@@ -12,6 +12,7 @@ meta.tsm = readRDS('Rdata/meta.tsm.Rdata')
 anns = readRDS('Rdata/anns.Rdata')
 # all.anns = readRDS('Rdata/all.anns.Rdata') 
 psi.tsm = readRDS('Rdata/psi.tsm.Rdata')
+psi.tsm.ms = readRDS('Rdata/psi.tsm.ms.Rdata')
 border.stages = readRDS('Rdata/border.stages.Rdata')
 seg2ens = readRDS('Rdata/seg2ens.Rdata')
 ens.ge.cod = readRDS('Rdata/ens.ge.cod.Rdata')
@@ -19,6 +20,7 @@ ens.ge.cod = readRDS('Rdata/ens.ge.cod.Rdata')
 # orth.seg.ad.tsm = readRDS('Rdata/orth.seg.ad.tsm.Rdata')
 born.exn.sajr = readRDS('Rdata/born.exn.sajr.Rdata')
 per.tissue.age.qv = readRDS('Rdata/per.tissue.age.qv.Rdata')
+age.dpsi = readRDS('Rdata/age.diam.spline4.with.replicates.Rdata')
 
 ens.descr = unique(read.table('input/hs.37.74.gene.descr.txt',sep=',',quote='"',header=TRUE)[,1:3])
 ens.descr$Description = sapply(strsplit(ens.descr$Description,' [',TRUE),'[',1)
@@ -114,12 +116,12 @@ dev.off()
 # 	tmp = readRDS(paste('Rdata/',s,'.as.u.filtered.Rdata',sep=''))
 # 	if(s == 'human')
 # 		tmp = tmp[,!(colnames(tmp$ir) %in% rownames(meta)[meta$stage %in% c('oldermidage','senior')])]
-# 	tmp = tmp[,(colnames(tmp$ir) %in% rownames(meta)[meta$days < my.sex.maturation[s]])]
+# 	tmp = tmp[,(colnames(tmp$ir) %in% rownames(meta)[meta$days <= my.sex.maturation[s]])]
 # 	per.tissue.age.bm.qv[[s]] = sapply(unique(meta$tissue),function(t){testASAge(tmp,meta,t,min.cov.sams=0.6)})
 # 	colnames(per.tissue.age.bm.qv[[s]]) = unique(meta$tissue)
 # 	dimnames(per.tissue.age.bm.qv[[s]]) = setNames(dimnames(per.tissue.age.bm.qv[[s]]),NULL)
 # }
-# saveRDS(per.tissue.age.bm.qv,'Rdata/per.tissue.age.bm.qv.Rdata')
+#saveRDS(per.tissue.age.bm.qv,'Rdata/per.tissue.age.bm.qv.Rdata')
 
 # orth.seg.ad = readRDS('Rdata/orth.seg.ad.Rdata')
 # orth.per.tissue.age.bm.qv = vector('list',nrow(species))
@@ -751,33 +753,61 @@ mtext('mean spline dPSI (df=4)',outer = T)
 dev.off()
 
 # _compare to GE ######
-ge.cnt = read.csv('input/number.of.de.gene.on.dev.from.Margarida.csv')
+ge.cnt = read.csv('input/number.of.de.gene.on.dev.from.Margarida_UPDATED.csv')
 t=strsplit(ge.cnt$TimeComp2,'[_-]')
 ge.cnt$t1 = sapply(t,'[',1)
 ge.cnt$t2 = sapply(t,'[',2)
 ge.cnt$t1[substr(ge.cnt$t2,nchar(ge.cnt$t2)-2,10)=='wpc'] = paste0(ge.cnt$t1[substr(ge.cnt$t2,nchar(ge.cnt$t2)-2,10)=='wpc'],'wpc')
-hs=c(newb='newborn',inf='infant',tod='toddler',sch='school',teen='teenager',yteen='youngteenager',oteen='oldTeenager',ya='youngadult',yma='youngmidage',oma='oldermidage')
+
+hs=c(newb='newborn',inf='infant',tod='toddler',sch='school',teen='teenager',yteen='youngteenager',oteen='oldTeenager',ya='youngadult',yma='youngmidage',oma='oldermidage',sen='senior')
+
+setdiff(setdiff(unique(ge.cnt$t1[ge.cnt$species=='human']),meta$stage),names(hs))
+setdiff(setdiff(unique(ge.cnt$t2[ge.cnt$species=='human']),meta$stage),names(hs))
+
 ge.cnt$t1[ge.cnt$t1 %in% names(hs)] = hs[ge.cnt$t1[ge.cnt$t1 %in% names(hs)]]
+ge.cnt$t2[ge.cnt$t2 %in% names(hs)] = hs[ge.cnt$t2[ge.cnt$t2 %in% names(hs)]]
+
+table(tolower(ge.cnt$t1) %in% tolower(meta$marg.stage),ge.cnt$species)
+table(paste(ge.cnt$species,tolower(ge.cnt$t2))%in% paste(meta$species,tolower(meta$marg.stage)),ge.cnt$species)
+
+f = ge.cnt$species=='opossum'
+setdiff(ge.cnt$t1[f],meta$marg.stage[meta$species=='opossum'])
+setdiff(meta$marg.stage[meta$species=='opossum'],ge.cnt$t1[f])
+
 f = ge.cnt$species=='opossum' & substr(ge.cnt$t1,1,1) == 'P'
 ge.cnt$t1[f] = as.numeric(substr(ge.cnt$t1[f],2,20))+14
 f = ge.cnt$species=='opossum' & substr(ge.cnt$t1,1,1) == 'e'
 ge.cnt$t1[f] = substr(ge.cnt$t1[f],2,20)
+
+f = ge.cnt$species=='opossum' & substr(ge.cnt$t2,1,1) == 'P'
+ge.cnt$t2[f] = as.numeric(substr(ge.cnt$t2[f],2,20))+14
+f = ge.cnt$species=='opossum' & substr(ge.cnt$t2,1,1) == 'e'
+ge.cnt$t2[f] = substr(ge.cnt$t2[f],2,20)
 ge.cnt$tissue = tolower(ge.cnt$tissue)
 
+mm = unique(paste(meta$species,meta$marg.stage))
+mm = setNames(mm,tolower(mm))
+table(paste(ge.cnt$species,tolower(ge.cnt$t2)) %in% names(mm))
+ge.cnt$t1 = sapply(strsplit(mm[paste(ge.cnt$species,tolower(ge.cnt$t1))],' '),'[',2)
+ge.cnt$t2 = sapply(strsplit(mm[paste(ge.cnt$species,tolower(ge.cnt$t2))],' '),'[',2)
 
-my2marg.stage = unique(meta[,c('species','tissue','stage','marg.stage')])
-mystage = paste(my2marg.stage$species,my2marg.stage$tissue, my2marg.stage$stage)
-mrstage = paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$marg.stage)
-x = split(mystage,mrstage)
-y = split(mrstage,mystage)
-x[sapply(x,length)>1]
-y[sapply(y,length)>1]
+table(paste(ge.cnt$species,ge.cnt$tissue,tolower(ge.cnt$t2)) %in% unlist(lapply(psi.tsm.ms,colnames)),ge.cnt$species)
 
-# code below is not completely correct since my stages has ambiguous correspondence to Margarida stages
-my2marg.stage = setNames(paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$stage),tolower(paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$marg.stage)))
-id = tolower(paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$t1))
-id[!(id %in% names(my2marg.stage))]
-rownames(ge.cnt) = my2marg.stage[id]
+# I'll perform analysis on Margarida stages, so code below is depricated
+# my2marg.stage = unique(meta[,c('species','tissue','stage','marg.stage')])
+# mystage = paste(my2marg.stage$species,my2marg.stage$tissue, my2marg.stage$stage)
+# mrstage = paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$marg.stage)
+# x = split(mystage,mrstage)
+# y = split(mrstage,mystage)
+# x[sapply(x,length)>1]
+# y[sapply(y,length)>1]
+# 
+# # code below is not completely correct since my stages has ambiguous correspondence to Margarida stages
+# my2marg.stage = setNames(paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$stage),tolower(paste(my2marg.stage$species,my2marg.stage$tissue,my2marg.stage$marg.stage)))
+# id = tolower(paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$t1))
+# id[!(id %in% names(my2marg.stage))]
+# rownames(ge.cnt) = my2marg.stage[id]
+
 
 'rabbit heart 9mpb' %in% rownames(ge.cnt);#my2marg.stage
 
@@ -804,10 +834,10 @@ dev.off()
 
 # _peak change 190205 ####
 # expression pseudocount is 0.01...
-ens.ge.marg.tsm = readRDS('Rdata/ens.ge.marg.tsm.Rdata')
+#ens.ge.marg.tsm = readRDS('Rdata/ens.ge.marg.tsm.Rdata')
 dpsi.age = lapply(rownames(species),function(s)calcdPSIonAge(psi.tsm[[s]][anns[[s]]$sites=='ad',],meta.tsm,stages2use=NULL))
-dgex.age = lapply(rownames(species),function(s)calcdPSIonAge(log2(ens.ge.marg.tsm[[s]]+1e-1),meta.tsm,stages2use=NULL))
-names(dgex.age) = names(dpsi.age) = rownames(species)
+#dgex.age = lapply(rownames(species),function(s)calcdPSIonAge(log2(ens.ge.marg.tsm[[s]]+1e-1),meta.tsm,stages2use=NULL))
+#names(dgex.age) = names(dpsi.age) = rownames(species)
 
 plot(apply(abs(dpsi.age$mouse[,grep('brain',colnames(dpsi.age$mouse))])>0.2,2,sum,na.rm=T),t='b')
 plot(apply(abs(dgex.age$mouse[,grep('brain',colnames(dgex.age$mouse))])>1,2,sum,na.rm=T),t='b',ylim=c(0,7000))
@@ -883,17 +913,40 @@ tab=table(as=factor(bkg.gid %in% as.gid.o,levels=c(FALSE,TRUE)),
 					ge=factor(bkg.gid %in% rownames(g)[apply(g> 1,1,sum,na.rm=T)>0],levels=c(FALSE,TRUE)))
 
 # _compare peak genes at peak stages ####
-psi.tsm.ms = readRDS('Rdata/psi.tsm.ms.Rdata')
-meta.tsm.ms = readRDS('Rdata/meta.tsm.ms.Rdata')
-dpsi.age = lapply(rownames(species),function(s)calcdPSIonAge(psi.tsm.ms[[s]],meta.tsm.ms,stages2use=NULL))
-names(dpsi.age) = rownames(species)
+# m2m = NULL
+# ts = unique(meta$tissue)
+# for(s in rownames(species)){
+# 	m = meta[meta$species==s,]
+# 	m = sort(sapply(split(m$days,m$stage),mean))
+# 	m = names(m)[-length(m)]
+# 	r = data.frame(my=paste(s,rep(ts,each=length(m)),rep(m,times=length(ts))),marg=paste0('T',rep(1:length(m),times=length(ts))))
+# 	r = r[r$my %in% rownames(meta.tsm),]
+# 	m2m = rbind(m2m,r)
+# }
+# 
+# 
+# rownames(m2m) = m2m$my
+# table(m2m$my %in% rownames(ge.cnt))
+# cmn = intersect(m2m$my , rownames(ge.cnt))
+# table(m2m[cmn,2] == ge.cnt[cmn,'timeCom'])
+# t = m2m[cmn,2] != ge.cnt[cmn,'timeCom']
+# m2m[cmn[t],][1:4,]
+# ge.cnt[cmn[t],][1:4,]
+# # lets just fix to margarida stages
+# m2m[cmn[t],2] = ge.cnt[cmn[t],'timeCom']
+# my2marg = m2m
+
+
+# meta.tsm.ms = readRDS('Rdata/meta.tsm.ms.Rdata')
+# dpsi.age = lapply(rownames(species),function(s)calcdPSIonAge(psi.tsm.ms[[s]],meta.tsm.ms,stages2use=NULL))
+# names(dpsi.age) = rownames(species)
 
 peak.ge.gids = lapply(paste0(firstToupper(rownames(species)[-2]),'_annotations'),function(s){
 	r = lapply(firstToupper(unique(meta$tissue)),function(t){
 		d = paste0('processed/GE.from.marg/Annotations_peaks_of_dev_change/',s,'/',t,'/')
 		fls = gsub('.txt','',list.files(d,pattern = 'txt'))
 		r = lapply(fls,function(f)readLines(paste0(d,f,'.txt')))
-		names(r) = gsub(t,'',fls)
+		names(r) = gsub('a','',gsub(t,'',fls))
 		r
 	})
 	names(r) = unique(meta$tissue)
@@ -902,8 +955,50 @@ peak.ge.gids = lapply(paste0(firstToupper(rownames(species)[-2]),'_annotations')
 names(peak.ge.gids) = rownames(species)[-2]
 sapply(peak.ge.gids,function(x)sapply(x,length))
 # remove rabbit, because genes lists from Margarida have T15 point, but in gene counts for peack changes that I use to find stages compared the maximal point is T14
-peak.ge.gids = peak.ge.gids[-4]
+# peak.ge.gids = peak.ge.gids[-4]
 
+#rename to match csv table
+s='rabbit'
+for(t in names(peak.ge.gids[[s]])){
+	mar.stage = as.numeric(gsub('Down|Up|T','',names(peak.ge.gids[[s]][[t]])[-1]))
+	o = c('Bckground',paste0('T',rep(mar.stage,each=2),rep(c('Up','Down'),times=length(mar.stage))))
+	peak.ge.gids[[s]][[t]] = peak.ge.gids[[s]][[t]][o]
+	f = t != 'ovary' | mar.stage != 14
+	if(sum(f)>0)
+		mar.stage[f] = mar.stage[f] - 1
+	names(peak.ge.gids[[s]][[t]])[-1] =paste0('T',rep(mar.stage,each=2),rep(c('Up','Down'),times=length(mar.stage)))
+}		
+n = names(peak.ge.gids$human$testis)
+names(peak.ge.gids$human$testis)[n=='T19Down'] = 'T18Down'
+names(peak.ge.gids$human$testis)[n=='T19Up'] = 'T18Up'
+# comp numbers to ge.cnt
+# r = NULL 
+# for(s in names(peak.ge.gids)){
+# 	for(t in names(peak.ge.gids[[s]])){
+# 		mar.stage = sort(unique(as.numeric(gsub('Down|Up|T','',names(peak.ge.gids[[s]][[t]])[-1]))))
+# 		if(length(mar.stage)>0){
+# 			r = rbind(r,data.frame(species=s,tissue=t,stage=paste0('T',mar.stage),up  =sapply(peak.ge.gids[[s]][[t]][paste0('T',mar.stage,'Up')],length),
+# 																								down=sapply(peak.ge.gids[[s]][[t]][paste0('T',mar.stage,'Down')],length)))
+# 		}
+# 	}		
+# }
+# rownames(r) = paste(r$species,r$tissue,r$stage)
+# ge.cnt.rn = paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$timeCom)
+# r[setdiff(rownames(r) , ge.cnt.rn),]
+# inx = match(rownames(r),ge.cnt.rn)
+# table(r$up==ge.cnt$up[inx],r$species)
+# table(r$down==ge.cnt$down[inx],r$species)
+# 
+# f = (r$up!=ge.cnt$up[inx] | r$down!=ge.cnt$down[inx])
+# cbind(r[f,],ge.cnt[inx[f],])
+# 
+# f=r$species!='rabbit'
+# plot(r$up[f],ge.cnt$up[inx[f]])
+# plot(r$down[f],ge.cnt$down[inx[f]])
+# 
+# comp genes
+
+rownames(ge.cnt) = paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$timeCom)
 peak.as.gids = list()
 dPSI = 0.2
 for(s in names(peak.ge.gids)){
@@ -912,24 +1007,43 @@ for(s in names(peak.ge.gids)){
 	for(t in names(peak.ge.gids[[s]])){
 		peak.as.gids[[s]][[t]] = list()
 		#ge
-		mar.stage = sort(unique(as.numeric(gsub('Down|Up|T|a','',names(peak.ge.gids[[s]][[t]])[-1]))))
+		mar.stage = sort(unique(as.numeric(gsub('Down|Up|T','',names(peak.ge.gids[[s]][[t]])[-1]))))
+		mar.stage = mar.stage[paste0(s,' ',t,' T',mar.stage) %in% paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$timeCom)]
 		if(length(mar.stage)<1)
 			next
-		o = c('Background',paste0('T',rep(mar.stage,each=2),rep(c('Up','Down'),times=length(mar.stage))))
+		o = c('Bckground',paste0('T',rep(mar.stage,each=2),rep(c('Up','Down'),times=length(mar.stage))))
 		peak.ge.gids[[s]][[t]] = peak.ge.gids[[s]][[t]][o]
 		names(peak.ge.gids[[s]][[t]])[1] = 'bkg'
 		#as
 		m2m = ge.cnt[ge.cnt$tissue==t & ge.cnt$species==s,]
 		m2m = tolower(setNames(m2m$t1,m2m$timeCom))
-		colnames(dpsi.age[[s]]) = tolower(colnames(dpsi.age[[s]]))
-		dp = dpsi.age[[s]][anns[[s]]$sites=='ad',paste(s,t,m2m[paste0('T',mar.stage)]),drop=FALSE]
-		dp = dp[apply(is.na(dp),1,sum)==0,,drop=FALSE] #I use only exons that expressed at all stages studied
-		peak.ge.gids[[s]][[t]][[1]] = peak.as.gids[[s]][[t]]$bkg = intersect(unique(unlist(seg2ens[[s]][rownames(dp)])),peak.ge.gids[[s]][[t]][[1]])
-		for(i in length(mar.stage):1){
-			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Both')]] = unique(unlist(seg2ens[[s]][rownames(dp)[abs(dp[,i])>dPSI]]))
-			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Down')]] = unique(unlist(seg2ens[[s]][rownames(dp)[dp[,i]< -dPSI]]))
-			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Up')]] = unique(unlist(seg2ens[[s]][rownames(dp)[dp[,i]>dPSI]]))
+		#colnames(dpsi.age[[s]]) = tolower(colnames(dpsi.age[[s]]))
+
+		# only devAS - might be confounded by expression level
+		sgn = per.tissue.age.qv[[s]][,t] < 0.05 & age.dpsi[[s]][,t]>0.2
+		sgn[is.na(sgn)] = FALSE
+		#dp = dpsi.age[[s]][anns[[s]]$sites=='ad' & sgn,paste(s,t,m2m[paste0('T',mar.stage)]),drop=FALSE]
+		psi = psi.tsm.ms[[s]][anns[[s]]$sites=='ad' & sgn,]
+		as.bkg = unique(unlist(seg2ens[[s]][rownames(per.tissue.age.qv[[s]])[anns[[s]]$sites=='ad' & !is.na(per.tissue.age.qv[[s]][,t]) & !is.na(age.dpsi[[s]][,t])]]))
+		peak.as.gids[[s]][[t]]$bkg = as.bkg #intersect(as.bkg,peak.ge.gids[[s]][[t]]$bkg)
+
+
+		# just use dPSI threshold
+		#dp = dpsi.age[[s]][anns[[s]]$sites=='ad',paste(s,t,m2m[paste0('T',mar.stage)]),drop=FALSE]
+		#dp = dp[apply(is.na(dp),1,sum)==0,,drop=FALSE] #I use only exons that expressed at all stages studied
+		#peak.ge.gids[[s]][[t]]$bkg = peak.as.gids[[s]][[t]]$bkg = intersect(unique(unlist(seg2ens[[s]][rownames(dp)])),peak.ge.gids[[s]][[t]]$bkg)
+
+		for(i in 1:length(mar.stage)){
+			cmp = ge.cnt[paste0(s,' ',t,' T',mar.stage[i]),]
+			dp = psi[,paste(s,t,tolower(cmp$t2))] - psi[,paste(s,t,tolower(cmp$t1))]
+			f = !is.na(dp)
+			peak.ge.gids[[s]][[t]][[paste0('T',mar.stage[i],'Both')]] = unique(c(peak.ge.gids[[s]][[t]][[paste0('T',mar.stage[i],'Up')]],peak.ge.gids[[s]][[t]][[paste0('T',mar.stage[i],'Down')]]))
+			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Both')]] = unique(unlist(seg2ens[[s]][names(dp)[f & abs(dp)>dPSI]]))
+			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Down')]] = unique(unlist(seg2ens[[s]][names(dp)[f & dp< -dPSI]]))
+			peak.as.gids[[s]][[t]][[paste0('T',mar.stage[i],'Up')]]   = unique(unlist(seg2ens[[s]][names(dp)[f & dp>dPSI]]))
 		}
+		o = c('bkg',paste0('T',rep(mar.stage,each=3),rep(c('Up','Down','Both'),times=length(mar.stage))))
+		peak.ge.gids[[s]][[t]] = peak.ge.gids[[s]][[t]][o]
 	}
 }
 
@@ -947,7 +1061,7 @@ checkSetsOverlap = function(s1,s2,b){
 	list(pv=pv,odd=odds,cnts=cnt)
 }
 
-pdf('figures/devAS/peak.change.overlaps.all-species-tissues.pdf',w=7*5,h=5*5)
+pdf('figures/devAS/peak.change.overlaps.all-species-tissues20201021.devAS_.pdf',w=7*6,h=5*6)
 par(mfrow=c(5,7),tck=-0.01,mgp=c(3.3,0.2,0),mar=c(2.5,4.5,1.5,0),oma=c(0,0,1,0))
 for(s in names(peak.ge.gids)[c(2,3,1,4,5)])
 	for(t in names(peak.ge.gids[[s]])){
@@ -955,13 +1069,97 @@ for(s in names(peak.ge.gids)[c(2,3,1,4,5)])
 			plot.new()
 			next
 		}
-		z=checkSetsOverlap(peak.ge.gids[[s]][[t]],peak.as.gids[[s]][[t]],peak.as.gids[[s]][[t]]$bkg)
+		z=checkSetsOverlap(peak.ge.gids[[s]][[t]],peak.as.gids[[s]][[t]],intersect(peak.as.gids[[s]][[t]]$bkg,peak.ge.gids[[s]][[t]]$bkg))
 		o = round(z$odd,2)
 		o[1,] = ''
 		o[,1] = ''
-		imageWithText(z$pv*sign(log(z$odd)),t = paste0(z$cnt,'\n',o),col=c('white','gray','cyan','blue','red','yellow','gray'),breaks=c(-1,-1,-0.05,-0.001,0,0.001,0.05,1),las=1,xlab='GE',ylab='AS',main=paste(s,t))
-}
+		imageWithText(z$pv*sign(log(z$odd)),t = paste0(z$cnt,'\n',o),col=c('white','gray','cyan','blue','red','yellow','gray'),breaks=c(-1,-1,-0.05,-0.001,0,0.001,0.05,1),las=1,xlab='GE',ylab='AS',main=paste(s,t),names.as.labs = TRUE)
+	}
+for(s in names(peak.ge.gids)[c(2,3,1,4,5)])
+	for(t in names(peak.ge.gids[[s]])){
+		if(length(peak.as.gids[[s]][[t]])==0){
+			plot.new()
+			next
+		}
+		z = checkSetsOverlap(peak.ge.gids[[s]][[t]],peak.as.gids[[s]][[t]],intersect(peak.as.gids[[s]][[t]]$bkg,peak.ge.gids[[s]][[t]]$bkg))
+		z = lapply(z,function(x)x[rownames(x)[grep('Both|bkg',rownames(x))],colnames(x)[grep('Both|bkg',colnames(x))],drop=F])
+		o = round(z$odd,2)
+		o[1,] = ''
+		o[,1] = ''
+		imageWithText(z$pv*sign(log(z$odd)),t = paste0(z$cnt,'\n',o),col=c('white','gray','cyan','blue','red','yellow','gray'),breaks=c(-1,-1,-0.05,-0.001,0,0.001,0.05,1),las=1,xlab='GE',ylab='AS',main=paste(s,t),names.as.labs = TRUE)
+	}
 dev.off()
+
+checkSetsOverlap1 = function(s1,s2,b){
+	s1 = intersect(s1,b)
+	s2 = intersect(s2,b)
+	ft = fisher.test(factor(b %in% s1,levels = c(TRUE,FALSE)),factor(b %in% s2,levels = c(TRUE,FALSE)))
+	data.frame(pv=ft$p.value,or=ft$estimate,intersect=length(intersect(s1,s2)),len1=length(s1),len2=length(s2))
+}
+
+r = NULL
+for(s in names(peak.ge.gids)){
+	for(t in names(peak.ge.gids[[s]])){
+		stages = unique(gsub('Down|Up|Both','',names(peak.ge.gids[[s]][[t]])[-1]))
+		for(stage in stages){
+			for(gdir in c('Up','Down','Both')){
+				for(adir in c('Up','Down','Both')){
+					tmp = checkSetsOverlap1(peak.ge.gids[[s]][[t]][[paste0(stage,gdir)]],peak.as.gids[[s]][[t]][[paste0(stage,adir)]],intersect(peak.as.gids[[s]][[t]]$bkg,peak.ge.gids[[s]][[t]]$bkg))
+					r = rbind(r,cbind(species=s,tissue=t,stage=stage,GE.dir=gdir,AS.dir=adir,tmp))
+				}
+			}
+		}
+	}
+}
+
+dim(r)
+table(is.na(r))
+
+r[1:13,]
+
+w = r[r$AS.dir=='Both' & r$GE.dir=='Both',]
+dim(w)
+w[1:2,]
+hist(w$pv)
+w$fdr = p.adjust(w$pv,m='BH')
+table(w$fdr<0.05,w$GE.dir)
+boxplot(log2(w$or) ~ w$GE.dir)
+f = w$fdr<0.05
+table(w$or[f]>1,w$GE.dir[f])
+hist(log2(w$or[f]))
+
+
+hist((w$intersect/pmin(w$len1,w$len2))[f])
+
+rownames(w) = NULL
+w$GE.dir = w$AS.dir = NULL
+w = w[,c('species','tissue','stage','len1','len2','intersect','or','pv','fdr')]
+w[1:2,]
+colnames(w)[c(3,4,5,6,7)] = c('Time interval','GE.cnt','AS.cnt','GE-and-AS.cnt','odds ratio')
+
+# m = unique(meta[,c('species','tissue','stage','paper.stages')])
+# m = setNames(m$paper.stages,paste(m$species,m$tissue,m$stage))
+# mar2my = setNames(m[rownames(ge.cnt)],paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$timeCom))
+
+mar2my = setNames(ge.cnt$TimeComp2,paste(ge.cnt$species,ge.cnt$tissue,ge.cnt$timeCom))
+w = cbind(w[,1:3],stages=mar2my[paste(w$species,w$tissue,w$`Time interval`)],w[,-1:-3])
+
+openxlsx::write.xlsx(w,'figures/paper.figures/6/nature.review/peak.changes.overlap.xlsx')
+
+hist(r$pv[r$GE.dir=='Up'])
+hist(r$pv[r$GE.dir=='Down'])
+hist(log2(r$or[r$GE.dir=='Up']))
+hist(log2(r$or[r$GE.dir=='Down']))
+r$qv = p.adjust(r$pv,m='BH')
+r[r$qv<0.05 & r$GE.dir=='Down',]
+f=r$qv<0.05
+boxplot(log2(r$or[f]) ~ r$GE.dir[f])
+boxplot(log2(r$or[f]) ~ r$AS.dir[f] + r$GE.dir[f])
+table(r$AS.dir[f] , r$GE.dir[f])
+table(r$GE.dir[f],r$or[f]>1)
+hist(r$intersect/(r$len1+r$len2-r$intersect),100)
+f = r$AS.dir=='Both'
+hist((r$intersect[f]/(r$len2[f])),100)
 
 sapply(mb.as.gids,length)
 

@@ -7,7 +7,6 @@ source('code/r.functions/ssPWM.F.R')
 source('code/r.functions/load.all.data.F.R')
 don.pwm = readRDS('Rdata/old/don.pwm.Rdata')
 acc.pwm = readRDS('Rdata/old/acc.pwm.Rdata')
-options(stringsAsFactors = FALSE)
 #all.anns = readRDS('Rdata/all.anns.Rdata')
 anns = readRDS('Rdata/anns.Rdata')
 species = readRDS('Rdata/species.Rdata')
@@ -66,10 +65,14 @@ params$species.pch=c(human=15,macaque=0,mouse=19,rat=1,rabbit=18,opossum=17,chic
 #saveRDS(orth.seg.ad,'Rdata/orth.seg.ad.Rdata')
 #saveRDS(orth.fa,'Rdata/ad.orth.fa.Rdata')
 fa = readRDS('Rdata/ad.alt.fa.Rdata')
+age.segs = readRDS('Rdata/devAS.4patt.Rdata')
 
-age.segs = lapply(rownames(species),function(s)getAgeASchanges(psi.tsm,meta.tsm,0.2,border.stages,s))
-names(age.segs) = rownames(species)
-for(s in names(age.segs)) age.segs[[s]][age.segs[[s]] != '-' & (is.na(per.tissue.age.qv[[s]]) | per.tissue.age.qv[[s]]>0.05)[rownames(age.segs[[s]]),colnames(age.segs[[s]])]] = 'n'
+
+# old devAS definition 
+# these results are in Rdata/old.dPSI.hexamers
+# age.segs = lapply(rownames(species),function(s)getAgeASchanges(psi.tsm,meta.tsm,0.2,border.stages,s))
+# names(age.segs) = rownames(species)
+# for(s in names(age.segs)) age.segs[[s]][age.segs[[s]] != '-' & (is.na(per.tissue.age.qv[[s]]) | per.tissue.age.qv[[s]]>0.05)[rownames(age.segs[[s]]),colnames(age.segs[[s]])]] = 'n'
 
 up.hex = lapply(fa,function(x){print(':');r=substr(x,1,200);countNmers(r[!grepl('n',r)],6)>0})
 up = ftHexAge(up.hex,age.segs,'u')
@@ -82,8 +85,7 @@ dw$ih.pv = apply(dw$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
 dw$ih.qv = apply(dw$ih.pv,2,p.adjust,m='BH')
 
 hex.ups.age02sgn = list(up=up,dw=dw)
-saveRDS(hex.ups.age02sgn,'Rdata/hex.ups.age02sgn.Rdata')
-
+#saveRDS(hex.ups.age02sgn,'Rdata/hex.ups.age02sgn.Rdata')
 
 dw.hex = lapply(fa,function(x){print(':');l=nchar(x);r=substr(x,l-199,l);countNmers(r[!grepl('n',r)],6)>0})
 
@@ -97,13 +99,77 @@ dw$ih.pv = apply(dw$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
 dw$ih.qv = apply(dw$ih.pv,2,p.adjust,m='BH')
 
 hex.dws.age02sgn = list(up=up,dw=dw)
-saveRDS(hex.dws.age02sgn,'Rdata/hex.dws.age02sgn.Rdata')
+#saveRDS(hex.dws.age02sgn,'Rdata/hex.dws.age02sgn.Rdata')
+
+# dawn sample segments per tissue #####
+sapply(rownames(species),function(s)apply(age.segs[[s]][anns[[s]]$sites=='ad',]=='u',2,sum))
+sapply(rownames(species),function(s)apply(age.segs[[s]][anns[[s]]$sites=='ad',]=='d',2,sum))
+
+set.seed(89312)
+age.segs.sub = downSampledevAS(age.segs,c('u','d'),per.tissue = TRUE)
+
+sapply(rownames(species),function(s)apply(age.segs.sub[[s]]=='u',2,sum))
+sapply(rownames(species),function(s)apply(age.segs.sub[[s]]=='d',2,sum))
+
+# up
+up.hex = lapply(fa,function(x){print(':');r=substr(x,1,200);countNmers(r[!grepl('n',r)],6)>0})
+up.sub = ftHexAge(up.hex,age.segs.sub,'u')
+dw.sub = ftHexAge(up.hex,age.segs.sub,'d')
+
+up.sub$ih.pv = apply(up.sub$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
+up.sub$ih.qv = apply(up.sub$ih.pv,2,p.adjust,m='BH')
+
+dw.sub$ih.pv = apply(dw.sub$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
+dw.sub$ih.qv = apply(dw.sub$ih.pv,2,p.adjust,m='BH')
+apply(up.sub$ih.qv <0.4,2,sum)
+
+hex.ups.age02sgn = list(up=up.sub,dw=dw.sub)
+#saveRDS(hex.ups.age02sgn,'Rdata/hex.ups.age02sgn.downsumpling.Rdata') # per tissue false
+#saveRDS(hex.ups.age02sgn,'Rdata/hex.ups.age02sgn.downsampling.per.tissue.Rdata')
+
+dw.hex = lapply(fa,function(x){print(':');l=nchar(x);r=substr(x,l-199,l);countNmers(r[!grepl('n',r)],6)>0})
+
+up.sub = ftHexAge(dw.hex,age.segs.sub,'u')
+dw.sub = ftHexAge(dw.hex,age.segs.sub,'d')
+
+up.sub$ih.pv = apply(up.sub$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
+up.sub$ih.qv = apply(up.sub$ih.pv,2,p.adjust,m='BH')
+
+dw.sub$ih.pv = apply(dw.sub$pv[,,-2],1:2,function(x)dirwin.hall(sum(x),length(x)))
+dw.sub$ih.qv = apply(dw.sub$ih.pv,2,p.adjust,m='BH')
+apply(up.sub$ih.qv <0.2,2,sum)
+apply(dw.sub$ih.qv <0.2,2,sum)
+
+hex.dws.age02sgn = list(up=up.sub,dw=dw.sub)
+#saveRDS(hex.dws.age02sgn,'Rdata/hex.dws.age02sgn.downsumpling.Rdata') # per tissue false
+#saveRDS(hex.dws.age02sgn,'Rdata/hex.dws.age02sgn.downsampling.per.tissue.Rdata')
 
 
+# look on results ######
+apply(hex.dws.age02sgn$up$ih.qv<0.05,2,sum)
+apply(hex.dws.age02sgn$dw$ih.qv<0.05,2,sum)
+apply(hex.ups.age02sgn$up$ih.qv<0.05,2,sum)
+apply(hex.ups.age02sgn$dw$ih.qv<0.05,2,sum)
 
 
-apply(up$ih.qv<0.05,2,sum)
 up6mers$cons.pv[1:2,]
+
+# mirrored
+b1 = hex.dws.age02sgn$up$ih.qv[,'brain'] <0.05 & hex.ups.age02sgn$dw$ih.qv[,'brain'] < 0.05
+b2 = hex.ups.age02sgn$up$ih.qv[,'brain'] <0.05 & hex.dws.age02sgn$dw$ih.qv[,'brain'] < 0.05
+
+h1 = hex.dws.age02sgn$up$ih.qv[,'heart'] <0.05 & hex.ups.age02sgn$dw$ih.qv[,'heart'] < 0.05
+h2 = hex.ups.age02sgn$up$ih.qv[,'heart'] <0.05 & hex.dws.age02sgn$dw$ih.qv[,'heart'] < 0.05
+
+
+
+table(b1,h1)
+table(b2,h2)
+
+table(b1,h2)
+table(b2,h1)
+rownames(hex.ups.age02sgn$up$ih.q)[b2 & h1]
+
 
 # comp to hexamers in clusters
 print(load('Rdata/old/ad.6mer.cl.enrich.Rdata'))

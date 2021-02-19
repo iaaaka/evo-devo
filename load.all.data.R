@@ -1429,3 +1429,11 @@ for(s in names(descrs)){
 	descrs[[s]]$descr =  sapply(strsplit(descrs[[s]]$descr,' [',TRUE),'[',1)
 }
 #saveRDS(descrs,'Rdata/ens.gene.descr.Rdata',version=2)
+
+# load map stat #####
+dim(meta)
+map.stat = sapply(paste0('processed/mapping/hisat2.s/',meta$species,'/',meta$fname,'.log'),function(f){print(f);parseHisat2LogS(f)})
+map.stat = as.data.frame(t(map.stat))
+f = factor(meta$species,levels=rownames(species))
+boxplot(map.stat$total ~ f)
+boxplot(map.stat$once/map.stat$total ~ f)
