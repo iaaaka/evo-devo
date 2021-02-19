@@ -1,4 +1,5 @@
 import numpy as np
+#import pandas as pd
 import re
 import collections
 import sys
@@ -8,11 +9,9 @@ from intervaltree import Interval, IntervalTree
 import cPickle as pickle
 import gc
 
-allSpecies=['human','macaque','mouse','rat','rabbit','opossum','chicken']
-#allSpecies=['human','macaque','mouse']
-#path2o='/home/mazin/evo.devo/annotation/all.species/merged/'
+allSpecies=['human','macaque','mouse']
 path='/uge_mnt/home/mazin/'
-path2o=path+'data/processed/evo.devo/annotation/hqmrboc.subsample/merged/'
+path2o=path+'data/processed/evo.devo/annotation/hqm.subsample/merged/'
 path2f=path2o+'liftover/first/'
 path2s=path2o+'liftover/second/'
 
@@ -189,7 +188,6 @@ def p(m):
 			sys.stdout.write( x[s][ss]+(' '*(l-len(x[s][ss])))+" ")
 		print
 
-
 def getOrthSegsByOverlap(check, minOverlap, allLiftovers = True):
 	sp =  check.values()[1][3].keys()[0]
 	check = {k: check[k] for k in check.keys() if check[k][0] > minOverlap and check[k][1] == 0 and (check[k][2] == 0 or not allLiftovers)}
@@ -258,7 +256,7 @@ def load_obj(name ):
         return pickle.load(f)
 # code
 
-#load files
+# load files
 origs = {}
 mergs = {}
 frsts = {}
@@ -278,67 +276,54 @@ for s in allSpecies:
 
 
 del(ad)
+species = {'m':'mouse','h':'human','q':'macaque'}
 
-save_obj(origs,path2o+'liftover/origs')
-save_obj(mergs,path2o+'liftover/mergs')
-save_obj(frsts,path2o+'liftover/frsts')
-save_obj(scnds,path2o+'liftover/scnds')
+#save_obj(origs,path2o+'liftover/origs')
+#save_obj(mergs,path2o+'liftover/mergs')
+#save_obj(frsts,path2o+'liftover/frsts')
+#save_obj(scnds,path2o+'liftover/scnds')
 
 
 #first, original annotations were liftovered to all other species
 #second, all exons in given species (original, and liftovered from other species) were collapsed and new IDs were introduced
 #third, all coordinates obtained on previous step were liftovered again to all species
 
-species = {'r':'rat','m':'mouse','b':'rabbit','h':'human','q':'macaque','o':'opossum','c':'chicken'}
-
-origs=load_obj(path2o+'liftover/origs') #hash of hashes of segment coordinates [species][seg_id] from original annotations
+#origs=load_obj(path2o+'liftover/origs') #hash of hashes of segment coordinates [species][seg_id] from original annotations
 #after first liftover union of all exons was calculated for each species (so it includes all exons of the species and all liftovered one, duplicates were collapsed and new ID were introduced (last column in gtf)
-mergs=load_obj(path2o+'liftover/mergs') #hash of hashes of segment_id (new IDs that just identify unique coordinates in given species)
-frsts=load_obj(path2o+'liftover/frsts') #[species.species][segment_id] - coordinates of exon from first species in the second one. identified by original segment ids
-scnds=load_obj(path2o+'liftover/scnds') #same as frsts but for second liftover and new segment IDs are used
-
-# test
-# minOverlap = 0.0
-# allLiftovers = False
-# o = [species[i] for i in 'hqmrboc']
-# t1 = getOrthSMatricesForSpecies(o)
-# save_obj(t1,path2o+'liftover/hqmrboc.orth.table')
-# p(t1['hum_034353.s8'])
-# t2 = checkOrthMatrixes(t1, o) 
-# t3 = getOrthSegsByOverlap(t2, minOverlap,allLiftovers=allLiftovers) 
+#mergs=load_obj(path2o+'liftover/mergs') #hash of hashes of segment_id (new IDs that just identify unique coordinates in given species)
+#frsts=load_obj(path2o+'liftover/frsts') #[species.species][segment_id] - coordinates of exon from first species in the second one. identified by original segment ids
+#scnds=load_obj(path2o+'liftover/scnds') #same as frsts but for second liftover and new segment IDs are used
 
 
 #make orth segments
-
-#names = ['hqmrboc','hqmrbo','hqmrb','hmo','hqmo','hmoc','hqmoc','hm','qm','rm','bm','om','cm','hq','hr','hb','ho','hc']
-names = ['hqmrboc','hqm']
+names = ['hqm']
+#names = ['hqmo','hq']
 # make orth tables
 minOverlap = 0.0
 allLiftovers = False
-for minOverlap in [0.0,0.6]:
-	for ns in names:
-		print(ns)
-		o = [species[i] for i in ns]
-		t = getOrthSMatricesForSpecies(o) #it is dictionary by seg id. For each original segment it contains coordinates in all species obtained by all possible ways.
-		t = checkOrthMatrixes(t, o) #it is collapsed version of 'getOrthSMatricesForSpecies'. There is a single interval (union) for all coordinates for each species. Plus include  minimum overlap of coordinates, number of species lost, number of edges lost	
-		t = getOrthSegsByOverlap(t, minOverlap,allLiftovers=allLiftovers) #ids for segments with overlapped liftovered coordinates
-		print(collections.Counter([len(x[1]) for x in t]))
-		t = [x for x in t if len(x[1]) == len(o)] #filter out all ambiguous cases
-		#if len([i for i in t if len(i[1])>len(o)]) > 0: #looks for cases where "orth segments" contains two segments from same species
-		#raise NameError('Self-overlapping segments!!')
-		f = open(path+'/projects/evo.devo/processed/annotation/hqmrboc.subsample/merged/orth.seg/' + ns + "." + str(minOverlap) + ".orth.ad.segs", 'w')
-		f.write('#minOverlap = '+str(minOverlap)+"\n#allLiftovers = "+str(allLiftovers)+"\n")
-		f.write('#all cases that include more than one segments from same species were filtered out\n')
-		for s in t:
-			f.write(str(s[0])+"\t")
-			v = s[1]
-			for i in range(0,len(v)):
-				if isinstance(v[i],list):
-					v[i] = '_'.join([str(x) for x in v[i]])
-			v = {i[0:3]:i for i in v}
-			v = [str(v.get(s[0:3])) for s in o]
-			f.write('\t'.join(v) + "\n")
-		f.close()
+for ns in names:
+	print(ns)
+	o = [species[i] for i in ns]
+	t = getOrthSMatricesForSpecies(o) #it is dictionary by seg id. For each original segment it contains coordinates in all species obtained by all possible ways.
+	t = checkOrthMatrixes(t, o) #it is collapsed version of 'getOrthSMatricesForSpecies'. There is a single interval (union) for all coordinates for each species. Plus include  minimum overlap of coordinates, number of species lost, number of edges lost	
+	t = getOrthSegsByOverlap(t, minOverlap,allLiftovers=allLiftovers) #ids for segments with overlapped liftovered coordinates
+	print(collections.Counter([len(x[1]) for x in t]))
+	t = [x for x in t if len(x[1]) == len(o)] #filter out all ambiguous cases
+	#if len([i for i in t if len(i[1])>len(o)]) > 0: #looks for cases where "orth segments" contains two segments from same species
+	#raise NameError('Self-overlapping segments!!')
+	f = open(path+'/projects/evo.devo/processed/orth.segs/only.ad/hqm.subsample.' + ns + "." + str(minOverlap) + ".orth.ad.segs", 'w')
+	f.write('#minOverlap = '+str(minOverlap)+"\n#allLiftovers = "+str(allLiftovers)+"\n")
+	f.write('#all cases that include more than one segments from same species were filtered out\n')
+	for s in t:
+		f.write(str(s[0])+"\t")
+		v = s[1]
+		for i in range(0,len(v)):
+			if isinstance(v[i],list):
+				v[i] = '_'.join([str(x) for x in v[i]])
+		v = {i[0:3]:i for i in v}
+		v = [str(v.get(s[0:3])) for s in o]
+		f.write('\t'.join(v) + "\n")
+	f.close()
 
 
 
